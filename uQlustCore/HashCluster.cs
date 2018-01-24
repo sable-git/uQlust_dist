@@ -20,6 +20,9 @@ namespace uQlustCore
         {
             public int threadNum;
             public double threshold;
+            public Dictionary<int, int>[] referenceDist;
+            public List<int> candidates;
+            public int referenceIndex;
         };
         public List<string> stateAlignKeys { get { return new List<string>(stateAlign.Keys); } }
 
@@ -1510,10 +1513,8 @@ namespace uQlustCore
             for (int i = 0; i < avoid.Length; i++)
                 avoid[i] = false;
 
-            foreach (var item in dic)
-                for (int i = 1; i < item.Value.Count; i++)
-                    avoid[item.Value[i]] = true;
 
+            List<int> candidates = new List<int>();
 
             for (int i = 0, k = 0; i < hashKeys.Length; i++)
             {
@@ -1524,42 +1525,63 @@ namespace uQlustCore
                     k++;
                 string keyProfile = hashKeys[sorted[i].Value];
                 int val = sorted[i].Key;
+                candidates.Clear();
+                //candidates.Add(sorted[i].Value);
                 while (k < sorted.Count && Math.Abs(val - sorted[k].Key) <= thresholdH)
                 {
-                    if (avoid[sorted[k].Value])
+                    if (!avoid[sorted[k].Value])
+                        candidates.Add(sorted[k].Value);
+                    k++;
+                }
+                if (candidates.Count > 0)
+                {
+                    int remThreadNumbers = threadNumbers;
+                    if (referenceDist != null)
                     {
-                        k++;
-                        continue;
-                    }
-                    bool test = true;
-                    if(referenceDist!=null)
-                    for (int n = 0; n < referenceDist.Length; n++)
-                        if (Math.Abs(referenceDist[n][sorted[k].Value] - referenceDist[n][sorted[i].Value]) > thresholdH)
+                        if (candidates.Count < 2 * remThreadNumbers)
+                            threadNumbers = remThreadNumbers / 2;
+                        if (threadNumbers < 1)
+                            threadNumbers = 1;
+                        for (int n = 0; n < threadNumbers; n++)
                         {
-                            test = false;
-                            break;
+                            threadParam w;
+                            w.threshold = thresholdH;
+                            w.threadNum = n;
+                            w.candidates = candidates;
+                            w.referenceDist = referenceDist;
+                            w.referenceIndex = sorted[i].Value;
+                            resetEvents[n] = new ManualResetEvent(false);
+                            ThreadPool.QueueUserWorkItem(new WaitCallback(CheckCandidates), (object)w);
                         }
 
-                    if (test)
-                    {
-                        List<int> inx = new List<int>();// (dic[hashKeys[sorted[k].Value]].Count);
-                        inx.AddRange(dic[hashKeys[sorted[k].Value]]);
-                        foreach (var item in dic[hashKeys[sorted[k].Value]])
-                            avoid[item] = true;
-                        if (!outDic.ContainsKey(keyProfile))
+                        for (int n = 0; n < threadNumbers; n++)
+                            resetEvents[n].WaitOne();
+
+                        foreach (var cand in candidates)
                         {
-                            List<int> auxList = new List<int>();
-                            auxList.AddRange(dic[keyProfile]);
-                            auxList.AddRange(inx);
-                            outDic.Add(keyProfile, auxList);
-                         
+                            if (cand >= 0)
+                            {
+                                List<int> inx = new List<int>();// (dic[hashKeys[sorted[k].Value]].Count);
+                                if (avoid[cand])
+                                    continue;
+                                //Console.Write("Ups");
+                                inx.AddRange(dic[hashKeys[cand]]);
+                                foreach (var item in dic[hashKeys[cand]])
+                                    avoid[item] = true;
+                                if (!outDic.ContainsKey(keyProfile))
+                                {
+                                    List<int> auxList = new List<int>();
+                                    auxList.AddRange(dic[keyProfile]);
+                                    auxList.AddRange(inx);
+                                    outDic.Add(keyProfile, auxList);
+                                }
+                                else
+                                    outDic[keyProfile].AddRange(inx);
+                                avoid[cand] = true;
+                            }
                         }
-                        else
-                            outDic[keyProfile].AddRange(inx);
-                        avoid[sorted[k].Value] = true;
-                        avoid[sorted[i].Value] = true;
                     }
-                    k++;
+                    threadNumbers = remThreadNumbers;
                 }
 
             }
@@ -1573,8 +1595,37 @@ namespace uQlustCore
 
             return outDic;
         }
+        void CheckCandidates(object o)//Dictionary<int, int>[] referenceDist, List<int> candidates, int referanceIndex,int threshold,int threadNum)
+        {
+            threadParam p = (threadParam)o;
+            Dictionary<int, int>[] referenceDist = p.referenceDist;
+            List<int> candidates = p.candidates;
+            int referanceIndex = p.referenceIndex;
+            int threadNum = p.threadNum;
+            int threshold = (int)p.threshold;
 
-        private Dictionary<string, List<int>> ClustDist(Dictionary<string, List<int>> dic, List<KeyValuePair<int, int>> sorted, int thresholdH, int vT)
+            double step = ((double)candidates.Count) / threadNumbers;
+            int start = (int)(step * threadNum);
+            int end = (int)(step * (threadNum + 1));
+            if (end > candidates.Count)
+                end = candidates.Count;
+            for (int x = start; x < end; x++)
+            {
+                bool test = true;
+                for (int n = 0; n < referenceDist.Length; n++)
+                    if (Math.Abs(referenceDist[n][candidates[x]] - referenceDist[n][referanceIndex]) > threshold)
+                    {
+                        test = false;
+                        break;
+                    }
+                if (!test)
+                    lock (candidates)
+                        candidates[x] = -1;
+            }
+            resetEvents[threadNum].Set();
+        }
+
+            private Dictionary<string, List<int>> ClustDist(Dictionary<string, List<int>> dic, List<KeyValuePair<int, int>> sorted, int thresholdH, int vT)
         {
             Dictionary<string, List<int>> outDic = new Dictionary<string, List<int>>(dic.Keys.Count);
             List<string> hashKeys = new List<string>(dic.Keys);
@@ -1626,7 +1677,7 @@ namespace uQlustCore
                     allStructures.Add(hashKeys[sorted[i].Value]);
                     for (int n = 0; n <threadNumbers; n++)
                     {
-                        threadParam w;
+                        threadParam w=new threadParam();
                         w.threshold = thresholdH;
                         w.threadNum = n;
                         resetEvents[n].Reset();
@@ -1682,50 +1733,108 @@ namespace uQlustCore
         }
         protected Dictionary<string, List<int>> FastCombineKeys(Dictionary<string, List<int>> dic, List<string> structures, bool flagDecision)
         {
-            Dictionary<string, List<int>> outDic=null;
-            List<string> hashKeys = new List<string>(dic.Keys);
-            double sum=0;
-            int[] tabDist = new int[hashKeys.Count];
-            
-            for (int i = 0; i < hashKeys.Count; i++)
+            Dictionary<string, List<int>> outDic = null;
+            string[] hashKeys = new string[structures.Count];
+
+
+            foreach (var item in dic)
+            {
+                for (int i = 0; i < item.Value.Count; i++)
+                    hashKeys[item.Value[i]] = item.Key;
+            }
+
+            bool[] avoid = new bool[hashKeys.Length];
+            double sum = 0;
+            bool end = false;
+            List<List<string>> clusters = new List<List<string>>();
+
+            int[] tabDist = new int[hashKeys.Length];
+
+            for (int i = 0; i < hashKeys.Length; i++)
             {
                 tabDist[i] = 0;
                 for (int n = 0; n < hashKeys[i].Length; n++)
                     if ((int)hashKeys[i][n] != '0')
                         tabDist[i]++;
             }
-            //var sorted = tabDist.AsParallel().WithDegreeOfParallelism(s.numberOfCores).Select((x, i) => new KeyValuePair<int, int>(x, i)).OrderBy(x => x.Key).ToList();
             var sorted = tabDist.Select((x, i) => new KeyValuePair<int, int>(x, i)).OrderBy(x => x.Key).ToList();
 
-            int thresholdA = 0;
-            int thresholdB = sorted[sorted.Count-1].Key;
-            DebugClass.WriteMessage("mPointOK" );
+            Dictionary<int, int>[] referenceDist = null;
+            consensusStates = new Dictionary<byte, int>[columns.Length];
+            for (int i = 0; i < columns.Length; i++)
+                consensusStates[i] = new Dictionary<byte, int>();
 
-            int iter =(int) Math.Ceiling(Math.Log(thresholdB, 2) / Math.Log(2, 2));
+            int stepRef = 0;
+
+            if (refPoints > 0)
+            {
+                stepRef = sorted.Count / refPoints;
+                referenceDist = new Dictionary<int, int>[refPoints];
+            }
+            for (int n = 0; n < refPoints; n++)
+            {
+
+                //   string profileKey = hashKeys[sorted[stepRef * (n + 1) - 1].Value];
+                string profileKey = hashKeys[FindNextRefPoint(n, sorted, referenceDist)];
+                List<byte> auxXX = auxDic[allStructures[dic[profileKey][0]]];
+                for (int i = 0; i < auxXX.Count; i++)
+                {
+                    consensusStates[i].Clear();
+                    consensusStates[i].Add(auxXX[i], 0);
+                }
+
+
+                Dictionary<string, List<int>> dic2 = PrepareKeys(allStructures, false, false);
+                referenceDist[n] = new Dictionary<int, int>(hashKeys.Length);
+
+                foreach (var item in dic2)
+                {
+                    int sumX = 0;
+                    for (int k = 0; k < item.Key.Length; k++)
+                        if ((int)item.Key[k] != '0')
+                            sumX++;
+
+                    foreach (var num in item.Value)
+                        referenceDist[n].Add(num, sumX);
+
+
+                }
+                dic2.Clear();
+                dic2 = null;
+
+            }
+            hashKeys = null;
+            Debug.Flush();
+            int thresholdA = 0;
+            int thresholdB = sorted[sorted.Count - 1].Key;
+            DebugClass.WriteMessage("mPointOK");
+
+            int iter = (int)Math.Ceiling(Math.Log(thresholdB, 2) / Math.Log(2, 2));
             int remCurrent = currentV;
             double step = 40 / iter;
             //int mPoint = (thresholdB+thresholdA)/2;
-            int mPoint=sorted[sorted.Count/2].Key;
-            DebugClass.WriteMessage("rel Clusters"+input.relClusters);
-            int xx=tabDist.Length/input.relClusters;
+            int mPoint = sorted[sorted.Count / 2].Key;
+            DebugClass.WriteMessage("rel Clusters" + input.relClusters);
+            int xx = tabDist.Length / input.relClusters;
             DebugClass.WriteMessage("xx=" + xx);
-           /* for(int i=xx;i<sorted.Count;i++)
-                if(sorted[i].Key!=sorted[xx].Key)
-                {
-                    mPoint=sorted[i].Key;
-                    break;
-                }*/
+            /* for(int i=xx;i<sorted.Count;i++)
+                 if(sorted[i].Key!=sorted[xx].Key)
+                 {
+                     mPoint=sorted[i].Key;
+                     break;
+                 }*/
             //mPoint=input.relClusters
-            bool decision = false ;
+            bool decision = false;
             int iterNumber = 0;
-            double prevStep=0;
+            double prevStep = 0;
             do
             {
                 //Check clusters size
                 DebugClass.WriteMessage("mPoint=" + mPoint);
                 outDic = null;
-                GC.Collect();               
-                outDic = ClustDist(dic, sorted, mPoint,1);
+                GC.Collect();
+                outDic = ClustDistNew(dic, referenceDist, sorted, mPoint, 1);
+                //outDic = ClustDist(dic,sorted, mPoint, 1);
                 DebugClass.WriteMessage("dicSize=" + outDic.Count);
                 //List<KeyValuePair<string, List<int>>> toSort = outDic.AsParallel().WithDegreeOfParallelism(s.numberOfCores).ToList();
                 List<KeyValuePair<string, List<int>>> toSort = outDic.ToList();
@@ -1735,10 +1844,10 @@ namespace uQlustCore
                     mPoint = (thresholdB + thresholdA) / 2;
                     iterNumber++;
                     currentV += (int)(iterNumber * step - prevStep);
-                    prevStep = iterNumber * step;                   
+                    prevStep = iterNumber * step;
                     continue;
                 }
-                
+
                 if (flagDecision)
                 {
                     toSort.Sort((nextPair, firstPair) => { return firstPair.Value.Count.CompareTo(nextPair.Value.Count); });
@@ -1765,10 +1874,10 @@ namespace uQlustCore
                 }
                 mPoint = (thresholdB + thresholdA) / 2;
                 iterNumber++;
-                currentV += (int)(iterNumber * step-prevStep);
-                prevStep = iterNumber*step;                   
+                currentV += (int)(iterNumber * step - prevStep);
+                prevStep = iterNumber * step;
             }
-            while ((thresholdB-thresholdA)>2);
+            while ((thresholdB - thresholdA) > 1);
 
             currentV += 40 - (currentV - remCurrent);
 
