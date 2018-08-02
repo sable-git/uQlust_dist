@@ -61,6 +61,7 @@
     <Compile Include="Distance\Optimization.cs" />
     <Compile Include="Distance\Qcp.cs" />
     <Compile Include="Distance\Rmsd.cs" />
+    <Compile Include="Distance\Tanimoto.cs" />
     <Compile Include="ErrorBase.cs" />
     <Compile Include="FastDendrog.cs" />
     <Compile Include="Fraction.cs" />
@@ -81,7 +82,9 @@
     <Compile Include="JobManager.cs" />
     <Compile Include="kMeans.cs" />
     <Compile Include="KmeansInput.cs" />
+    <Compile Include="Profiles\DsspContent.cs" />
     <Compile Include="Profiles\GaussIntegrals.cs" />
+    <Compile Include="Profiles\GaussIntegralsRNA.cs" />
     <Compile Include="Profiles\MAlignment.cs" />
     <Compile Include="Options.cs" />
     <Compile Include="PDB\Atom.cs" />
@@ -101,7 +104,9 @@
     <Compile Include="Profiles\FragBagProfile.cs" />
     <Compile Include="Profiles\InternalProfilesManager.cs" />
     <Compile Include="Profiles\ProfileAutomatic.cs" />
+    <Compile Include="Profiles\ProfileStat.cs" />
     <Compile Include="Profiles\RNASSProfile.cs" />
+    <Compile Include="Profiles\SSContent.cs" />
     <Compile Include="Profiles\UserDefinedProfile.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RandIndex.cs" />

@@ -33,6 +33,7 @@ namespace uQlustCore
         HAMMING,
         COSINE,
         GDT_TS,
+        TANIMOTO,
         NONE
     }
     public enum AglomerativeType

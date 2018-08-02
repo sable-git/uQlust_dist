@@ -12,7 +12,7 @@ namespace uQlustCore
 {
     public class Alignment : IProgressBar
     {
-        Settings dirSettings;
+        Settings dirSettings = new Settings();
         Dictionary<string, Dictionary<string, string>> align=new Dictionary<string, Dictionary<string, string>>();
         int gcCounter = 0;
         string refSeq = null;
@@ -21,6 +21,7 @@ namespace uQlustCore
         public Alignment()
         {
             r = new ProfileTree();
+            dirSettings.Load();
         }
 
         public double ProgressUpdate()
@@ -229,7 +230,10 @@ namespace uQlustCore
             }
             try
             {
-                AlignProfiles();
+                if (dirSettings.mode != INPUTMODE.USER_DEFINED)
+                    AlignProfiles();
+                else
+                    OmitAlignProfiles();
             }
             catch (Exception)
             {
@@ -275,6 +279,16 @@ namespace uQlustCore
            
 
         }
+
+        public void OmitAlignProfiles()
+        {
+            List<string> keys = new List<string>(r.profiles.Keys);
+            r.protCombineStates = new Dictionary<string, List<byte>>();
+            foreach (var item in r.profiles[keys[0]].Keys)
+                r.protCombineStates.Add(item,r.profiles[keys[0]][item].profile);
+
+            r.MakeDummyCombineCoding();
+        }
 		public void AlignProfiles()
 		{
             List <string> profName=new List<string>(r.profiles.Keys);
@@ -293,7 +307,7 @@ namespace uQlustCore
                     continue;
 
 
-                foreach (var item in r.profiles)                
+                foreach (var item in r.profiles)
                     AlignProfile(protName, item.Key, item.Value[protName].profile);                    
                 
                

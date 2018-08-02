@@ -28,8 +28,8 @@ namespace uQlustCore.Profiles
         [DllImport("DSSP")]
         static public extern IntPtr GetSEQ(IntPtr obj);
 
-        static string SSprofile = "SS profile ";
-        static string SAprofile = "SA profile ";
+        protected string SSprofile = "SS profile ";
+        protected string SAprofile = "SA profile ";
         
         //static string PSIprofile = "PSI profile ";
         //static string PHIprofile = "PHI profile ";
@@ -94,7 +94,7 @@ namespace uQlustCore.Profiles
             
 
         }
-        private string DSSPErrors(int num)
+        protected string DSSPErrors(int num)
         {
             switch (num)
             {
@@ -214,71 +214,6 @@ namespace uQlustCore.Profiles
             //currentV = maxV;
             return 0;
         }
-        /*public override void Run(string fileName)
-        {
-         
-
-            List<string> files = CheckFile(fileName);
-
-            if (files.Count == 0)
-                return;
-            StreamWriter wr;
-            if (File.Exists(GetProfileFileName(fileName)))
-                wr = File.AppendText(GetProfileFileName(fileName));
-            else
-                wr = new StreamWriter(GetProfileFileName(fileName));
-
-            if (wr == null)
-                throw new Exception("Cannot open file: " + GetProfileFileName(fileName));
-
-            //Wrapper wrapper = new Wrapper();
-            List<Thread> runnigThreads = new List<Thread>();
-            timeSp = 0;
-            Thread startProg;
-            
-            for(int i=0;i<threadNumbers;i++)
-            {
-                ThreadFiles tparam = new ThreadFiles();
-
-                List <string> auxFiles = new List<string>();
-                for (int j = i * files.Count / threadNumbers; j < (i + 1) * files.Count / threadNumbers; j++)
-                    auxFiles.Add(files[j]);
-
-                fileSubListName=GetProfileFileName(fileName)+"_"+i;
-
-                tparam.fileName = fileSubListName;
-                tparam.files = auxFiles;
-                startProg = new Thread(RunSubList);
-                startProg.Start(tparam);
-                runnigThreads.Add(startProg);
-
-                while (!startProg.IsAlive);
-                //RunSubList(auxFiles, fileN);
-            }
-
-            for (int i = 0; i < runnigThreads.Count; i++)
-                runnigThreads[i].Join();
-
-
-                for (int i = 0; i < threadNumbers; i++)
-                {
-                    string fileN = GetProfileFileName(fileName) + "_" + i;
-                    StreamReader rr = new StreamReader(fileN);
-                    if (rr == null)
-                        throw new Exception("Cannot open file: " + fileN);
-
-                    string line = rr.ReadLine();
-                    while (line != null)
-                    {
-                        wr.WriteLine(line);
-                        line = rr.ReadLine();
-                    }
-                    rr.Close();
-                    File.Delete(fileN);
-                }
-            wr.Close();
-
-        }*/
         private string ConvertSAProfile(string saProfile,string seq)
         {
             string convert="";

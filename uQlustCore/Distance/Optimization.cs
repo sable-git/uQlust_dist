@@ -46,7 +46,34 @@ namespace uQlustCore.Distance
 
             return structure;
         }
+     /*   public static posMOL PrepareData(MolData mol1, MolData mol2, bool atomList = false)
+        {
+            posMOL globPosMol = new posMOL();
 
+            globPosMol.posmol1 = new float[mol1.mol.Residues.Count, 3];
+            globPosMol.posmol2 = new float[mol2.mol.Residues.Count, 3];
+
+            for (int i = 0; i < mol1.mol.Residues.Count; i++)
+            {
+                globPosMol.posmol1[i, 0] = mol1.mol.Residues[i].Atoms[0].Position.X;
+                globPosMol.posmol1[i, 1] = mol1.mol.Residues[i].Atoms[0].Position.Y;
+                globPosMol.posmol1[i, 2] = mol1.mol.Residues[i].Atoms[0].Position.Z;
+            }
+            for (int i = 0; i < mol2.mol.Residues.Count; i++)
+            {
+                globPosMol.posmol2[i, 0] = mol2.mol.Residues[i].Atoms[0].Position.X;
+                globPosMol.posmol2[i, 1] = mol2.mol.Residues[i].Atoms[0].Position.Y;
+                globPosMol.posmol2[i, 2] = mol2.mol.Residues[i].Atoms[0].Position.Z;
+            }
+
+            float[] center = new float[3];
+
+            CenterMol(globPosMol.posmol1, center);
+            CenterMol(globPosMol.posmol2, center);
+
+            return globPosMol;
+
+        }*/
         public static posMOL PrepareData(MolData mol1,MolData mol2,bool atomList=false)
         {
             int count=0;

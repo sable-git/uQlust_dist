@@ -34,6 +34,7 @@ namespace Graph
         string winName;
         int mposX, mposY;
         DrawHierarchical drawH;
+        HClusterNode root;
         public override string ToString()
         {
             return "Dendrogram";
@@ -45,10 +46,10 @@ namespace Graph
         public visHierar(ClusterOutput outp, string name, string measureName, Dictionary<string, string> labels)
         {
             InitializeComponent();
-            HClusterNode hnode = outp.hNode;
+            root = outp.hNode;
             profilesColorMap = outp.profilesColor;
             buffer = new Bitmap(pictureBox1.Width, pictureBox1.Height);
-            drawH = new DrawHierarchical(hnode, measureName, labels, buffer, true);
+            drawH = new DrawHierarchical(root, measureName, labels, buffer, true);
             drawH.horizontalView = true;
             winName = name;
             this.Text = name;
@@ -59,6 +60,7 @@ namespace Graph
         public visHierar(HClusterNode hnode,string name,string measureName,Dictionary<string,string> labels)
         {
             InitializeComponent();
+            root = hnode;
             buffer = new Bitmap(pictureBox1.Width, pictureBox1.Height);
             drawH = new DrawHierarchical(hnode, measureName, labels,buffer,true);
             drawH.horizontalView = true;
@@ -96,13 +98,16 @@ namespace Graph
         private void Form2_ResizeEnd(object sender, EventArgs e)
         {
             clearAll = true;
-            buffer = new Bitmap(pictureBox1.Width, pictureBox1.Height);
-            drawH.PrepareGraphNodes(buffer);
-            drawH.DrawOnBuffer(buffer,true,1,Color.Empty);
-            pictureBox1.Refresh();
-            this.Invalidate();
-            drawH.maxGraphicsY = pictureBox1.Height-drawH.posStart-30;
-            drawH.maxGraphicsX = pictureBox1.Width - drawH.posStart - 30;
+            if (pictureBox1.Width > 0 && pictureBox1.Height > 0)
+            {
+                buffer = new Bitmap(pictureBox1.Width, pictureBox1.Height);
+                drawH.PrepareGraphNodes(buffer);
+                drawH.DrawOnBuffer(buffer, true, 1, Color.Empty);
+                pictureBox1.Refresh();
+                this.Invalidate();
+                drawH.maxGraphicsY = pictureBox1.Height - drawH.posStart - 30;
+                drawH.maxGraphicsX = pictureBox1.Width - drawH.posStart - 30;
+            }
         }
 
         private void toolStripButton1_Click(object sender, EventArgs e)
@@ -560,6 +565,32 @@ namespace Graph
                 pictureBox1.Refresh(); 
             }
 
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            DialogResult res = openFileDialog1.ShowDialog();
+
+            if (res == DialogResult.OK)
+            {
+                StreamReader r = new StreamReader(openFileDialog1.FileName);
+                Dictionary<string, string[]> data = new Dictionary<string, string[]>();
+                string line = r.ReadLine();
+                while (line != null)
+                {
+                    string[] aux = line.Split(' ');
+                    string[] classLabes = new string[aux.Length - 1];
+                    for (int i = 1; i < aux.Length; i++)
+                        classLabes[i - 1] = aux[i];
+                    if (!data.ContainsKey(aux[0]))
+                        data.Add(aux[0], classLabes);
+                    line = r.ReadLine();
+                }
+                r.Close();
+                ClusterLabel pn = new ClusterLabel(root, data,false);
+
+                pn.Show();
+            }
         }
 
         private void toolStripButton10_Click(object sender, EventArgs e)

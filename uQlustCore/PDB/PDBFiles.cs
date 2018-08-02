@@ -12,7 +12,7 @@ namespace uQlustCore.PDB
 {
 
 
-    public enum PDBMODE { ONLY_CA, ONLY_CB, ALL_ATOMS, CA_CB,ONLY_SEQ, ONLY_P };
+    public enum PDBMODE { ONLY_CA, ONLY_CB, ALL_ATOMS, CA_CB,ONLY_SEQ, ONLY_P,ONLY_P_AND_C4 };
     public enum CHAIN_MODE { SINGLE, ALL };
     public class IncorrectSideChainException : Exception
     {
@@ -654,7 +654,7 @@ namespace uQlustCore.PDB
                     Settings set = new Settings();
                     set.Load();
                     int threadNumbers = set.numberOfCores;
-
+                //return;
                     auxFiles = new List<string>[threadNumbers];
                     resetEvents = new ManualResetEvent[threadNumbers];
                     List<string> allFiles = new List<string>(molDic.Keys);

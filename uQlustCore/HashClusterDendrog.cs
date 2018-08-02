@@ -88,7 +88,65 @@ namespace uQlustCore
              ClusterOutput output = DendrogUsingMeasures(stateAlignKeys);
              return output;
          }
+        public Dictionary<string,int> ReadLeafs()
+        {
+            Dictionary<string, int> leafs = new Dictionary<string, int>();
+            StreamReader r = new StreamReader("C:\\Projects\\results_leavs.dat");
 
+            string line = r.ReadLine();
+
+            while(line!=null)
+            {
+                if(line.Contains("cluster"))
+                {
+                    string[] aux = line.Split(' ');
+                    if (!leafs.ContainsKey(aux[0]))
+                        leafs.Add(aux[0], 1);
+                }
+                line = r.ReadLine();
+            }
+
+
+            r.Close();
+            return leafs;
+        }
+        Dictionary<string,List<int>> SelectClusters(Dictionary<string,int> rep, Dictionary<string,List<int>> clusters)
+        {
+            Dictionary<string, List<int>> res = new Dictionary<string, List<int>>();
+            Dictionary<int,string> toString = new Dictionary<int,string>();
+
+            for (int i = 0; i < allStructures.Count; i++)
+            {
+                string name = allStructures[i];
+                name = name.Replace(".pdb", "");
+                name = name.Replace("pdb", "");
+                string[] aux = name.Split('.');
+                string[] xx = name.Split('_');
+                string ww = aux[0] + xx[xx.Length - 1].ToLower();
+                toString.Add(i, ww);
+            }
+            StreamWriter cc = new StreamWriter("represent.dat");
+            foreach(var item in clusters)
+            {
+                foreach(var cl in item.Value)
+                    if(rep.ContainsKey(toString[cl]))
+                    {
+                        cc.WriteLine(toString[cl]);
+                        List<int> list = new List<int>();
+                        list.Add(cl);
+                        foreach(var k in item.Value)
+                        {
+                            if (k != cl)
+                                list.Add(k);
+                        }
+                        res.Add(item.Key, list);
+                        break;
+                    }
+            }
+            cc.Close();
+
+            return res;
+        }
          public ClusterOutput DendrogUsingMeasures(List<string> structures)
          {
              jury1D juryLocal = new jury1D();
@@ -109,10 +167,12 @@ namespace uQlustCore
                  if (!input.combine)
                      dic = HashEntropyCombine(dic, structures, input.relClusters);
                  else
-                    dic = FastCombineKeys(dic, structures, false);
+                    dic = Rpart(dic, structures, false);
                     //dic = FastCombineKeysNew(dic, structures, false);
             }
-            maxV = 3;
+            Dictionary<string, int>  xx=ReadLeafs();
+            dic = SelectClusters(xx, dic);
+           maxV = 3;
             currentV = 1;
              //Console.WriteLine("Entropy ready after jury " + Process.GetCurrentProcess().PeakWorkingSet64);
              DebugClass.WriteMessage("Entropy ready");

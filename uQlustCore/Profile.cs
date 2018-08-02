@@ -167,6 +167,15 @@ namespace uQlustCore
         
 
         }
+        public void MakeDummyCombineCoding()
+        {
+            List<profileNode> active = GetActiveLeaves();
+
+            List<string> xx = new List<string>(active[0].profWeights.Keys);
+            for (int i = 0; i < xx.Count; i++)
+                protCombineCoding.Add(xx[i], Convert.ToByte(xx[i]));
+        }
+
         public Dictionary<byte, Dictionary<byte, double>> GenerateWeights(wOpertion weightsOperation)
         {
             List<profileNode> active = GetActiveLeaves();

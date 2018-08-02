@@ -63,7 +63,7 @@ namespace uQlustCore
 //Neaded for thread Tasks
         ManualResetEvent[] resetEvents = null;
         List<int>[] threadStructures;
-        List<string> allStructures;
+        protected List<string> allStructures;
         Dictionary<byte, int>[] col = null;
         char[][] keyTab;
         Dictionary<string, List<byte>> auxDic;
@@ -536,6 +536,33 @@ namespace uQlustCore
 
             return entropy;
         }
+        protected virtual double[] CalcEntropy(Dictionary<string,List<int>> dic)
+        {
+            List<string> keys = new List<string>(dic.Keys);
+
+
+            double[] entropy = new double[keys[0].Length];
+            for (int i = 0; i < keys[0].Length; i++)
+            {
+                int counter = 0;
+                for (int j = 0; j < keys.Count; j++)
+                    if (keys[j][i] == '0')
+                        counter++;
+
+                entropy[i] = 0;
+                double prob = 0;
+ //               entropy[i] = counter;
+                prob=((double)counter) / keys.Count;
+                if(prob>0)
+                    entropy[i]= -prob * Math.Log10(prob);
+                if((1-prob)>0)
+                    entropy[i] += -(1-prob) * Math.Log10(1-prob);
+
+            }
+            return entropy;
+
+        }
+
         protected virtual double [] CalcEntropy(Dictionary<byte,int> []locColumns)
         {
             if (locColumns == null)
@@ -713,7 +740,6 @@ namespace uQlustCore
             Dictionary<string, List<string>> finalList = new Dictionary<string, List<string>>();
             if (columns == null)
                 return null;
-            DebugClass.WriteMessage("Select");
             bool[] columnAvoid = new bool[columns.Length];
           
             int[] indexes = new int[columnAvoid.Length];
@@ -807,7 +833,6 @@ namespace uQlustCore
         {
             if (columns == null)
                 return null;
-            DebugClass.WriteMessage("Select");
             bool[] columnAvoid = new bool[columns.Length];
             for (int i = 0; i < columns.Length; i++)
                 columnAvoid[i] = false;
@@ -883,40 +908,193 @@ namespace uQlustCore
             }
             while (positionRight - positionLeft > 1);
 
-            StreamWriter vv = new StreamWriter("test.ttt");
-            foreach(var item in xx)
-            {
-                vv.WriteLine("num=" + item.Key + " entropy=" + item.Value);
-            }
-            vv.Close();
-            DebugClass.WriteMessage("End Select");
             return hashClusters;
 
         }
-        private Dictionary<string, List<int>> SelectColumnsByEntropy(Dictionary<string, List<int>> dic, int k, double prec)
+        double CheckAcc(Dictionary<string, List<int>> dic, List<string> structures,Dictionary<string,string>labels)
+        {
+            double good = 0;
+            double all = 0;
+            Dictionary<string, int> resDic = new Dictionary<string, int>();
+            foreach(var item in dic)
+            {
+                resDic.Clear();
+                foreach(var clItem in item.Value)
+                {
+                    try
+                    {
+                        if (labels.ContainsKey(structures[clItem]))
+                        {
+                            if (resDic.ContainsKey(labels[structures[clItem]]))
+                                resDic[labels[structures[clItem]]]++;
+                            else
+                                resDic.Add(labels[structures[clItem]], 1);
+                        }
+                    }
+                    catch(Exception ex)
+                    {
+                        Console.WriteLine("ups");
+                    }
+
+                }
+                if (resDic.Count > 0)
+                {
+                    List<string> keys = new List<string>(resDic.Keys);
+                    try
+                    {
+                        if (resDic.Count > 1)
+                            keys.Sort(delegate (string x, string y)
+                            {
+                                return resDic[x].CompareTo(resDic[y]);
+                            });
+                        keys.Reverse();
+                        good += resDic[keys[0]];
+                        all += item.Value.Count;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Write("ips2");
+                    }
+                }
+            }
+            return good/all;
+        }
+        void AddColumnsOneByOne(Dictionary<string, List<int>> dic, List<string> structures)
+        {
+            List<string> keys = new List<string>(dic.Keys);
+            //StreamReader labFile = new StreamReader("C:\\Projects\\labels.txt");
+            StreamReader labFile = new StreamReader("C:\\Projects\\labels_rna");
+            Dictionary<string, string> labDic = new Dictionary<string, string>();
+            string line = labFile.ReadLine();
+            while(line!=null)
+            {
+                line = line.TrimEnd();
+                string[] aux = line.Split(' ');
+                if (!labDic.ContainsKey(aux[0]))
+                    labDic.Add(aux[0], aux[1]);
+                else
+                    DebugClass.WriteMessage("key already exists " + aux[0] + " value: "+labDic[aux[0]]+" new value: "+aux[1]);
+                line = labFile.ReadLine();
+            }
+            labFile.Close();
+
+            Dictionary<string, List<int>> hashCluster = new Dictionary<string, List<int>>();
+            int prev = 0;
+            double res = 0;
+            double max = 0;
+            int locIndex = -1;
+            List<int> indexList = new List<int>();            
+            for (int i = 1; i < keys[0].Length; i++)
+            {
+                hashCluster.Clear();
+                string key = "";
+                StringBuilder tmpKey = new StringBuilder();
+                max = 0;
+                for (int j = 0; j < keys[0].Length; j++)
+                {
+                    if (indexList.Count > 0 && indexList.Contains(j))
+                        continue;
+                    foreach (var item in dic.Keys)
+                    {
+                        try
+                        {                            
+                            if (indexList.Count > 0)
+                            {
+                                foreach (var idx in indexList)
+                                        tmpKey.Append(item[idx]);
+                                        //key += item.Substring(idx, 1);
+                            }
+                            tmpKey.Append(item[j]);
+                            key = tmpKey.ToString();
+                            tmpKey.Clear();
+                            if (!hashCluster.ContainsKey(key))
+                                hashCluster.Add(key, new List<int>());
+
+                            hashCluster[key].AddRange(dic[item]);
+                        }
+                        catch (Exception sx)
+                        {
+                            Console.WriteLine("hhhf");
+                        }
+                    }
+                    res = CheckAcc(hashCluster, structures, labDic);
+                    if (res>max)
+                    {
+                        max = res;
+                        locIndex = j;
+                    }
+                    hashCluster.Clear();
+                }
+                indexList.Add(locIndex);
+                //indexList.Remove(locIndex);
+            }               
+        }
+    Dictionary<string, List<int>> DropColumnsOneByOne(Dictionary<string, List<int>> dic,List<string> structures)
+        {
+            List<string> keys = new List<string>(dic.Keys);
+            Dictionary<string, List<int>> hashCluster=null;
+            int prev = 0;
+            for (int i=1;i<keys[0].Length;i++)
+            {
+                hashCluster = ClusterByDropColumns(dic, i);
+                if(hashCluster.Count!=prev)
+                {
+                    ClusterOutput output=DictionaryToClusterOutput(hashCluster, structures);
+                    string fileName = "Clust_" + i;
+                    output.SaveTxt(fileName);
+                    prev = hashCluster.Count;
+                }
+            }
+
+            return hashCluster;
+        }
+        Dictionary<string, List<int>> ClusterByDropColumns(Dictionary<string, List<int>> dic,int refPosition)
+        {
+            Dictionary<string, List<int>> hashClusters = new Dictionary<string, List<int>>();                        
+
+            hashClusters.Clear();
+            string key = "";
+            foreach (var item in dic.Keys)
+            {
+                key = item.Substring(0, refPosition);
+                if (!hashClusters.ContainsKey(key))
+                    hashClusters.Add(key, new List<int>());
+
+                hashClusters[key].AddRange(dic[item]);
+            }
+            return hashClusters;
+        }
+        Dictionary<string, List<int>> SelectColumnsByEntropy(Dictionary<string, List<int>> dic, int k, double prec)
         {
             if (columns == null)
                 return null;
-            DebugClass.WriteMessage("Select");
-            bool [] columnAvoid=new bool [columns.Length];
-            for (int i = 0; i < columns.Length; i++)
-                columnAvoid[i] = false;
+
+            /*            bool [] columnAvoid=new bool [columns.Length];
+                        for (int i = 0; i < columns.Length; i++)
+                            columnAvoid[i] = false;
 
 
-           // if (dic.Keys.Count < k)
-             //   k = dic.Keys.Count -1;
+                       // if (dic.Keys.Count < k)
+                         //   k = dic.Keys.Count -1;
 
-            int[] indexes = new int[columnAvoid.Length];
+                        int[] indexes = new int[columnAvoid.Length];
+
+                        for (int j = 0; j < indexes.Length; j++)
+                            indexes[j] = j;
+
+                        double[] entropy = CalcEntropy(columns);*/
+
+            double[] entropy = CalcEntropy(dic);
+
+
+            int[] indexes = new int[entropy.Length];
 
             for (int j = 0; j < indexes.Length; j++)
-                indexes[j] = j;
+                indexes[j] = j;                        
 
-            double[] entropy = CalcEntropy(columns);
-
-            Array.Sort(entropy, indexes);
-            Array.Reverse(entropy);
-            Array.Reverse(indexes);
-
+           // Array.Sort(entropy, indexes);
+           //Array.Reverse(entropy);
+           //Array.Reverse(indexes);
             Dictionary<string, List<int>> hashClusters = new Dictionary<string, List<int>>();
 
             int position=0;
@@ -929,9 +1107,9 @@ namespace uQlustCore
 
                 hashClusters.Clear();
 
-                selectedColumnsHash.Clear();
+/*                selectedColumnsHash.Clear();
                 for (int i = 0; i < position; i++)
-                    selectedColumnsHash.Add(indexes[i]);
+                    selectedColumnsHash.Add(indexes[i]);*/
                 StringBuilder keyB = new StringBuilder();
                 foreach (var item in dic.Keys)
                 {
@@ -968,8 +1146,19 @@ namespace uQlustCore
                 
             }
             while (positionRight-positionLeft>1);
-        
-            DebugClass.WriteMessage("End Select");
+            DebugClass.WriteMessage("Mean selected:");
+            double sum = 0;
+            for (int i = 0; i < position; i++)
+                sum += entropy[i];
+            sum /= position;
+            DebugClass.WriteMessage("mean: "+sum);
+            sum = 0;
+
+            DebugClass.WriteMessage("Mediana: "+entropy[entropy.Length/2]);
+
+            DebugClass.WriteMessage("");
+
+
             return hashClusters;
 
         }
@@ -977,7 +1166,6 @@ namespace uQlustCore
         {
             if (columns == null)
                 return null;
-            DebugClass.WriteMessage("Select");
             bool[] columnAvoid = new bool[columns.Length];
             for (int i = 0; i < columns.Length; i++)
                 columnAvoid[i] = false;
@@ -1164,22 +1352,26 @@ namespace uQlustCore
 
 
         }
-        int FindNextRefPoint(int n,List<KeyValuePair<int,int>> sortedDist,Dictionary <int,int>[] refPoints)
+
+        int FindNextRefPoint(List<KeyValuePair<int,int>> sortedDist,Dictionary <int,int>[] refPoints,List<int>refIndex)
         {            
-            if (n == 0)
+            if (refIndex.Count-1 == 0)
                 return sortedDist[sortedDist.Count-1].Value;
 
             int[] newDist = new int[sortedDist.Count];
 
             for (int i = 0; i < sortedDist.Count; i++)
                 newDist[sortedDist[i].Value] = sortedDist[i].Key;
-            for (int i = 0; i < n; i++)
+            for (int i = 0; i < refIndex.Count-1; i++)
                 for (int j = 0; j < sortedDist.Count; j++)
-                    newDist[j] += refPoints[i][j];
+                    newDist[j] += refPoints[i][sortedDist[j].Value];
 
             var sorted = newDist.Select((x, i) => new KeyValuePair<int, int>(x, i)).OrderBy(x => x.Key).ToList();
 
-            return sorted[sorted.Count/2].Value;
+            for(int i=0;i<refIndex.Count-1;i++)
+                if(!refIndex.Contains(sorted[sorted.Count - i-1].Value))
+                    return sorted[sorted.Count - i-1].Value; ;
+            return sorted[sorted.Count-1].Value;
 
         }
         protected Dictionary<string, List<int>> FastCombineKeysNew(Dictionary<string, List<int>> dic, List<string> structures, bool flagDecision)
@@ -1187,7 +1379,12 @@ namespace uQlustCore
             Dictionary<string, List<int>> outDic = null;
             string []hashKeys = new string [structures.Count];
 
+            jury = new jury1D();
+            List<KeyValuePair<string,double>> juryOut=jury.JuryOptWeights(structures).juryLike;
 
+            if (dic.Count < input.relClusters)
+                return dic;
+            input.refPoints = 10;
             foreach( var item in dic)
             {                
                 for(int i=0;i<item.Value.Count;i++)
@@ -1226,8 +1423,9 @@ namespace uQlustCore
             for (int n = 0; n < refPoints; n++)
             {
 
-                //   string profileKey = hashKeys[sorted[stepRef * (n + 1) - 1].Value];
-                string profileKey= hashKeys[FindNextRefPoint(n,sorted,referenceDist)];
+                //string profileKey = hashKeys[sorted[stepRef * (n + 1) - 1].Value];
+                string profileKey = juryOut[stepRef * (n + 1) - 1].Key;
+                //   string profileKey= hashKeys[FindNextRefPoint(n,sorted,referenceDist)];
                 List<byte> auxXX = auxDic[allStructures[dic[profileKey][0]]];
                 for (int i = 0; i < auxXX.Count; i++)
                 {
@@ -1253,10 +1451,8 @@ namespace uQlustCore
                 }
 
             }
-            Debug.Flush();
             int thresholdA = 0;
             int thresholdB = sorted[sorted.Count - 1].Key;
-            DebugClass.WriteMessage("mPointOK");
 
             int iter = (int)Math.Ceiling(Math.Log(thresholdB, 2) / Math.Log(2, 2));
             int remCurrent = currentV;
@@ -1296,7 +1492,7 @@ namespace uQlustCore
                     prevStep = iterNumber * step;
                     continue;
                 }
-
+                DebugClass.WriteMessage("OK");
                 if (flagDecision)
                 {
                     toSort.Sort((nextPair, firstPair) => { return firstPair.Value.Count.CompareTo(nextPair.Value.Count); });
@@ -1329,7 +1525,7 @@ namespace uQlustCore
             while ((thresholdB - thresholdA) > 1);
 
             currentV += 40 - (currentV - remCurrent);
-
+            DebugClass.WriteMessage("NEXT");
             return outDic;
         }
         protected Dictionary<string, List<int>> FastCombineKeysOLD(Dictionary<string, List<int>> dic, List<string> structures, bool flagDecision)
@@ -1392,10 +1588,8 @@ namespace uQlustCore
                 }
 
             }
-            Debug.Flush();            
             int thresholdA = 0;
             int thresholdB = sorted[sorted.Count - 1].Key;
-            DebugClass.WriteMessage("mPointOK");
 
             int iter = (int)Math.Ceiling(Math.Log(thresholdB, 2) / Math.Log(2, 2));
             int remCurrent = currentV;
@@ -1494,6 +1688,29 @@ namespace uQlustCore
             }
             resetEvents[num].Set();
         }
+        int MoveToCorrectPosition(int reference,int start, int thresholdH,List<KeyValuePair<int, int>> sorted)
+        {
+            int val = sorted[reference].Key;
+            int lastPosition = sorted.Count-1;
+            int current;
+            if (Math.Abs(val - sorted[start].Key) > thresholdH)
+                return start;
+
+            current = (start + lastPosition) / 2;
+
+            while(lastPosition-start>1)
+            {
+                if (Math.Abs(val - sorted[current].Key) <= thresholdH)
+                    start = current;
+                else
+                    lastPosition = current;
+                current = (start + lastPosition) / 2;
+            }
+            if (Math.Abs(val - sorted[start].Key) > thresholdH)
+                return start;
+            
+            return lastPosition;
+        }
         private Dictionary<string, List<int>> ClustDistNew(Dictionary<string, List<int>> dic, Dictionary<int, int>[] referenceDist, List<KeyValuePair<int, int>> sorted, int thresholdH, int vT)
         {
             Dictionary<string, List<int>> outDic = new Dictionary<string, List<int>>(dic.Keys.Count);
@@ -1521,18 +1738,33 @@ namespace uQlustCore
                 if (avoid[sorted[i].Value])
                     continue;
                 k = i + 1;
+                if (k >= hashKeys.Length)
+                    continue;
+
                 while (k < sorted.Count && avoid[sorted[k].Value])
                     k++;
+                if (k == sorted.Count)
+                    k--;
                 string keyProfile = hashKeys[sorted[i].Value];
                 int val = sorted[i].Key;
                 candidates.Clear();
                 //candidates.Add(sorted[i].Value);
-                while (k < sorted.Count && Math.Abs(val - sorted[k].Key) <= thresholdH)
-                {
-                    if (!avoid[sorted[k].Value])
-                        candidates.Add(sorted[k].Value);
-                    k++;
-                }
+
+
+                int newK = MoveToCorrectPosition(i, k, thresholdH, sorted);
+
+                for (int j = k; j < newK; j++)
+                        if (!avoid[sorted[j].Value])
+                            candidates.Add(sorted[j].Value);
+
+
+
+                /* while (k < sorted.Count && Math.Abs(val - sorted[k].Key) <= thresholdH)
+                 {
+                     if (!avoid[sorted[k].Value])
+                         candidates.Add(sorted[k].Value);
+                     k++;
+                 }*/
                 if (candidates.Count > 0)
                 {
                     int remThreadNumbers = threadNumbers;
@@ -1557,6 +1789,8 @@ namespace uQlustCore
                         for (int n = 0; n < threadNumbers; n++)
                             resetEvents[n].WaitOne();
 
+                        candidates.Add(sorted[i].Value);
+
                         foreach (var cand in candidates)
                         {
                             if (cand >= 0)
@@ -1571,7 +1805,7 @@ namespace uQlustCore
                                 if (!outDic.ContainsKey(keyProfile))
                                 {
                                     List<int> auxList = new List<int>();
-                                    auxList.AddRange(dic[keyProfile]);
+                                    //auxList.AddRange(dic[keyProfile]);
                                     auxList.AddRange(inx);
                                     outDic.Add(keyProfile, auxList);
                                 }
@@ -1583,6 +1817,7 @@ namespace uQlustCore
                     }
                     threadNumbers = remThreadNumbers;
                 }
+               
 
             }
             for (int i = 0; i < sorted.Count; i++)
@@ -1731,11 +1966,90 @@ namespace uQlustCore
 
             return outDic;
         }
-        protected Dictionary<string, List<int>> FastCombineKeys(Dictionary<string, List<int>> dic, List<string> structures, bool flagDecision)
+        Dictionary<string,List<int>> PrepareRefDictionaries(List<string> structures)
+        {
+            Dictionary<string, List<int>> listDic = new Dictionary<string, List<int>>();
+            Dictionary<int, string> aux = new Dictionary<int, string>();
+
+            Dictionary<string,List<int>> dic=PrepareKeys(structures, true, true);
+            string[] hashKeys = new string[structures.Count];
+
+            foreach(var item in dic)
+            {
+                foreach(var intV in item.Value)
+                {
+                    aux.Add(intV, item.Key);
+                }
+            }
+
+
+            jury = new jury1D();
+            jury.PrepareJury(al, stateAlign);
+            List<KeyValuePair<string, double>> juryOut = jury.JuryOptWeights(structures).juryLike;
+
+
+
+            foreach (var item in dic)
+            {
+                for (int i = 0; i < item.Value.Count; i++)
+                    hashKeys[item.Value[i]] = item.Key;
+            }
+
+            List<List<string>> clusters = new List<List<string>>();
+
+
+            consensusStates = new Dictionary<byte, int>[columns.Length];
+            for (int i = 0; i < columns.Length; i++)
+                consensusStates[i] = new Dictionary<byte, int>();
+
+            for (int n = 0; n < refPoints; n++)
+            {
+                string profileKey = juryOut[(int)((n + 1) * 0.75*juryOut.Count /refPoints)].Key;
+                List<byte> auxXX = auxDic[profileKey];
+                for (int i = 0; i < auxXX.Count; i++)
+                {
+                    consensusStates[i].Clear();
+                    consensusStates[i].Add(auxXX[i], 0);
+                }
+
+
+                Dictionary<string, List<int>> dic2 = PrepareKeys(allStructures, false, false);
+                foreach (var item in dic2)
+                    foreach (var intV in item.Value)
+                        aux[intV] += item.Key;
+            }
+            foreach (var item in aux)
+                if (listDic.ContainsKey(item.Value))
+                    listDic[item.Value].Add(item.Key);
+                else
+                {
+                    List<int> l = new List<int>();
+                    l.Add(item.Key);
+                    listDic.Add(item.Value, l);
+                }
+
+            return listDic;
+
+        }
+
+        protected Dictionary<string, List<int>> Rpart(Dictionary<string, List<int>> dic, List<string> structures, bool flagDecision)
         {
             Dictionary<string, List<int>> outDic = null;
             string[] hashKeys = new string[structures.Count];
 
+            refPoints =200;
+
+            if (dic.Count < input.relClusters)
+                return dic;
+
+            jury = new jury1D();
+            jury.PrepareJury(al, stateAlign);
+
+            /*  List<string> dicStruct = new List<string>();
+              foreach (var item in dic)
+                  dicStruct.Add(structures[item.Value[0]]);
+              List<KeyValuePair<string, double>> juryOut = jury.JuryOptWeights(dicStruct).juryLike;*/
+            List<KeyValuePair<string, double>> juryOut = jury.JuryOptWeights(structures).juryLike;
 
             foreach (var item in dic)
             {
@@ -1747,7 +2061,7 @@ namespace uQlustCore
             double sum = 0;
             bool end = false;
             List<List<string>> clusters = new List<List<string>>();
-
+           
             int[] tabDist = new int[hashKeys.Length];
 
             for (int i = 0; i < hashKeys.Length; i++)
@@ -1768,15 +2082,20 @@ namespace uQlustCore
 
             if (refPoints > 0)
             {
-                stepRef = sorted.Count / refPoints;
+                stepRef = (int)(sorted.Count*3/4.0 / refPoints);
                 referenceDist = new Dictionary<int, int>[refPoints];
             }
+            List<int> refIndex = new List<int>();
+            refIndex.Add(sorted[0].Value);
             for (int n = 0; n < refPoints; n++)
             {
 
                 //   string profileKey = hashKeys[sorted[stepRef * (n + 1) - 1].Value];
-                string profileKey = hashKeys[FindNextRefPoint(n, sorted, referenceDist)];
-                List<byte> auxXX = auxDic[allStructures[dic[profileKey][0]]];
+                string profileKey = juryOut[stepRef * (n + 1) - 1].Key;
+                //refIndex.Add(FindNextRefPoint(sorted, referenceDist,refIndex));
+                //string profileKey = hashKeys[refIndex[refIndex.Count-1]];
+               //List<byte> auxXX = auxDic[allStructures[dic[profileKey][0]]];
+                List<byte> auxXX = auxDic[profileKey];
                 for (int i = 0; i < auxXX.Count; i++)
                 {
                     consensusStates[i].Clear();
@@ -1827,6 +2146,7 @@ namespace uQlustCore
             bool decision = false;
             int iterNumber = 0;
             double prevStep = 0;
+            Dictionary<string, List<int>> bestRes = null;
             do
             {
                 //Check clusters size
@@ -1834,6 +2154,14 @@ namespace uQlustCore
                 outDic = null;
                 GC.Collect();
                 outDic = ClustDistNew(dic, referenceDist, sorted, mPoint, 1);
+                if (bestRes == null)
+                    bestRes = outDic;
+                else
+                {
+                    DebugClass.WriteMessage("BEST");
+                    if (Math.Abs(outDic.Count - input.relClusters) < Math.Abs(outDic.Count - bestRes.Count))
+                        bestRes = outDic;
+                }
                 //outDic = ClustDist(dic,sorted, mPoint, 1);
                 DebugClass.WriteMessage("dicSize=" + outDic.Count);
                 //List<KeyValuePair<string, List<int>>> toSort = outDic.AsParallel().WithDegreeOfParallelism(s.numberOfCores).ToList();
@@ -1847,7 +2175,7 @@ namespace uQlustCore
                     prevStep = iterNumber * step;
                     continue;
                 }
-
+                DebugClass.WriteMessage("OK1");
                 if (flagDecision)
                 {
                     toSort.Sort((nextPair, firstPair) => { return firstPair.Value.Count.CompareTo(nextPair.Value.Count); });
@@ -1872,16 +2200,19 @@ namespace uQlustCore
                         thresholdA = mPoint;
 
                 }
+                DebugClass.WriteMessage("OK2");
                 mPoint = (thresholdB + thresholdA) / 2;
                 iterNumber++;
                 currentV += (int)(iterNumber * step - prevStep);
                 prevStep = iterNumber * step;
+              
             }
             while ((thresholdB - thresholdA) > 1);
 
             currentV += 40 - (currentV - remCurrent);
-
-            return outDic;
+            DebugClass.WriteMessage("NEXT");
+            //return outDic;
+            return bestRes;
         }
 
         private List<List<string>> CombineKeys(Dictionary<string, List<int>> dic, List<string> structures)
@@ -1937,8 +2268,27 @@ namespace uQlustCore
 
             return clusters;
         }
-
-        private List<List<string>> PrepareClusters(Dictionary<string, List<int>> dic, List<string> structures)
+        void CheckRPart(Dictionary<string, List<int>> dic, List<string> structures)
+        {
+            Dictionary<string, List<int>> res;
+            int prev = 0;
+            for (int i = 3000; i < 20000; i += 1000)
+            {
+                input.relClusters = i;
+                res = Rpart(dicC, structNames, true);
+                if (res.Count != prev)
+                {
+                    DebugClass.WriteMessage("output");
+                    ClusterOutput oo = DictionaryToClusterOutput(res, structures);
+                    DebugClass.WriteMessage("Prepared");
+                    string fileName = "Rpart_ref20_" + i;
+                    oo.SaveTxt(fileName);
+                    DebugClass.WriteMessage("done");
+                    prev = res.Count;
+                }
+            }
+        }
+        private ClusterOutput PrepareClusters(Dictionary<string, List<int>> dic, List<string> structures)
         {
             List<List<string>> clusters = new List<List<string>>(dic.Count);
             
@@ -1946,7 +2296,11 @@ namespace uQlustCore
             {
                 switch (input.selectionMethod)
                 {
-                    case COL_SELECTION.ENTROPY:                       
+                    case COL_SELECTION.ENTROPY:
+                        refPoints =10;
+                        // dicC=PrepareRefDictionaries(structures);
+                        AddColumnsOneByOne(dicC, structures);
+                       // dicC = DropColumnsOneByOne(dicC,structures);
                         dicC = SelectColumnsByEntropy(dicC, input.relClusters, input.perData / 100.0);
                         break;
                     case COL_SELECTION.META_COL:
@@ -1954,7 +2308,6 @@ namespace uQlustCore
                         break;
                 }
                 currentV+=40;
-                DebugClass.WriteMessage("Entropy end");
                 structToKey.Clear();
                 foreach (var item in dicC)
                 {
@@ -1972,27 +2325,52 @@ namespace uQlustCore
                 if (input.combine)
                 {
                    // dicC = HashEntropyCombine(dicC, structures, dicC.Count);
-                    //dicFinal = FastCombineKeys(dicC, structNames, true);
-                    dicFinal = FastCombineKeysNew(dicC, structNames, true);
+                   dicFinal = Rpart(dicC, structNames, true);
+                   // CheckRPart(dicC, structNames);
+                    // dicFinal = FastCombineKeysNew(dicC, structNames, true);
                     dic = dicFinal;
                 }
                 currentV++;
                 DebugClass.WriteMessage("After FastCombine: " + dicC.Keys.Count);
 
-            }
+            }          
 
-            foreach (var item in dicFinal.Keys)
+            return DictionaryToClusterOutput(dicFinal, structures);
+        }
+
+        private ClusterOutput DictionaryToClusterOutput(Dictionary<string,List<int>> dic, List<string> structures)
+        {
+            List<List<string>> clusters = new List<List<string>>(dic.Count);
+
+            jury = new jury1D();
+            jury.PrepareJury(al);
+
+            foreach (var item in dic.Keys)
             //foreach (var item in keyList)
             {
-                List<string> aux = new List<string>(dicFinal[item].Count);
+                List<string> aux = new List<string>(dic[item].Count);
 
-                foreach (var st in dicFinal[item])
+                foreach (var st in dic[item])
                     aux.Add(structures[st]);
 
+//Added -------------------------------------------------------------
+                ClusterOutput outJury = jury.JuryOptWeights(aux);
+
+                int index = aux.FindIndex(x => x == outJury.juryLike[0].Key);
+
+                if (index != 0)
+                {
+                    string tmp = aux[0];
+                    aux[0] = aux[index];
+                    aux[index] = tmp;
+                }
+//----------------------------------------------------------------------
                 clusters.Add(aux);
             }
-            DebugClass.WriteMessage("Return clusters");
-            return clusters;
+            ClusterOutput res = new ClusterOutput();
+            res.clusters = clusters;
+
+            return res;
         }
         protected string Regularization(string key, string structName)
         {
@@ -2120,7 +2498,6 @@ namespace uQlustCore
             }
             resetEvents = new ManualResetEvent[localThreadN];
 
-            DebugClass.WriteMessage("Keys preparing");
             currentV += 10;
 
             List<string> aux = new List<string>(stateAlign.Keys);
@@ -2138,7 +2515,7 @@ namespace uQlustCore
             for (int i = 0; i < localThreadN; i++)
                 resetEvents[i].WaitOne();
 
-            DebugClass.WriteMessage("Keys ready");
+
             currentV += 10;
                 if (cleanMemory)
                 {
@@ -2362,104 +2739,6 @@ namespace uQlustCore
             }
             return new KeyValuePair<Dictionary<string, List<int>>, List<string>>(localDic, bStructures);
         }
-        public ClusterOutput AutomaticCluster(List<string> _structNames,bool dendrog=false)
-        {
-            HashCInput remInput = input;
-            int remRelClusters=0;
-            int remPerData = 0;
-            ClusterOutput output = new ClusterOutput();
-            ClusterOutput[] backOutput = new ClusterOutput[10];
-            Dictionary<int, Dictionary<int, double>> res = new Dictionary<int, Dictionary<int, double>>();
-            double finalRes = Double.MinValue;
-            PrepareClustering(_structNames);
-
-            dicC = SelectColumnsByEntropy(dicC, dicC.Keys.Count - dicC.Keys.Count/5, 0.95);
-
-            List<string> keys =new List<string>(dicC.Keys);
-            
-            Dictionary<string,string> backDic=new Dictionary<string,string>();
-            foreach (var item in _structNames)
-                    allItems.Add(dirName + Path.DirectorySeparatorChar + item);
-
-
-            for (int i = 0; i < backOutput.Length; i++)
-                backOutput[i] = new ClusterOutput();
-
-            jury = new jury1D();
-            jury.PrepareJury(allItems, null, input.profileName);
-
-            Dictionary<string, List<int>> remDic = new Dictionary<string, List<int>>(dicC);
-            for(int i=2;i<10;i++)//relevant clusters
-            {
-
-                if (output.clusters != null)
-                {
-                    output.clusters.Clear();
-                    foreach(var item in backOutput)
-                        item.clusters.Clear();
-                }
-
-                input.relClusters = i;
-                Dictionary<int, double> aux = new Dictionary<int, double>();
-
-                for (int j = 30; j < 90; j += 5) //percentage 
-                {
-                    dicC = remDic;
-                    input.perData = j;
-
-                    output.clusters = PrepareClusters(dicC, structNames);
-                    double backDisp = 0;
-                    List<double> backList = new List<double>();
-                    foreach (var item in backOutput)
-                    {
-                        List<string> kk = new List<string>(remDic.Keys);
-                        KeyValuePair<Dictionary<string, List<int>>, List<string>> backGround = default(KeyValuePair<Dictionary<string, List<int>>, List<string>>);
-                        backGround = MakeBackgroundData(kk);
-                        backDic.Clear();
-                        foreach (var bitem in backGround.Key)
-                            backDic.Add(backGround.Value[bitem.Value[0]], bitem.Key);
-                        dicC = backGround.Key;
-
-                        item.clusters = PrepareClusters(backGround.Key, backGround.Value);
-
-                        backList.Add(Math.Log(CalcDisp(item.clusters, backDic)));
-                        backDisp += backList[backList.Count-1];
-                    }
-                    backDisp /= backOutput.Length;
-                    double disp = 0;
-                    disp = Math.Log(CalcDisp(output.clusters, structToKey));
-                    double sdk = 0;
-
-                    foreach(var item in backList)
-                    {
-                        sdk += (item - backDisp) * (item - backDisp);
-                    }
-                    sdk = Math.Sqrt(1.0 / backList.Count * sdk)*Math.Sqrt(1.0/backList.Count+1);
-
-                    double gap = backDisp - disp;
-
-                    aux.Add(j, gap);
-
-                    // aux.Add(j, CalculateDaviesBouldinIndex(output.clusters));
-                    if (j>30 && aux[j-5]-aux[j]+sdk >= finalRes)
-                    {
-                        finalRes = aux[j - 5] - aux[j] + sdk;
-                        remRelClusters = i;
-                        remPerData = j-5;
-                        //break;
-                    }
-
-                }
-                res.Add(i, aux);
-            }
-
-            input.relClusters = remRelClusters;
-            input.perData = remPerData;
-            output.clusters = PrepareClusters(dicC, structNames);
-
-            input = remInput;
-            return output;
-        }
 
         protected void PrepareClustering(List<string> _structNames)
         {
@@ -2573,12 +2852,12 @@ namespace uQlustCore
         {
             
             structNames = new List<string>(_structNames.Count);
-            ClusterOutput output = new ClusterOutput();
+            ClusterOutput output;
 
             PrepareClustering(_structNames);
             //output = PrepareClustersJuryLike(dicC, structNames);
 
-            output.clusters = PrepareClusters(dicC, structNames);
+            output = PrepareClusters(dicC, structNames);
             output.clusterConsisten = CalcClustersConsistency(output.clusters);
 
             currentV = maxV;

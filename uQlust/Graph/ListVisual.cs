@@ -5,6 +5,7 @@ using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using System.IO;
 using System.Windows.Forms;
 using uQlustCore;
 using uQlustCore.Interface;
@@ -139,6 +140,7 @@ namespace Graph
                 selectedItem = "";
             }
         }
+      
 
         private void button1_Click(object sender, EventArgs e)
         {
@@ -147,6 +149,34 @@ namespace Graph
             if(res==DialogResult.OK)
             {
                 output.SaveTxt(saveFileDialog1.FileName);
+            }
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+
+            DialogResult res = openFileDialog1.ShowDialog();
+
+            if (res == DialogResult.OK)
+            {
+                StreamReader r = new StreamReader(openFileDialog1.FileName);
+                Dictionary<string, string[]> data = new Dictionary<string, string[]>();
+                string line = r.ReadLine();
+                while (line != null)
+                {
+                    string[] aux = line.Split(' ');
+                    string[] classLabes = new string[aux.Length - 1];
+                    for (int i = 1; i < aux.Length; i++)
+                        classLabes[i - 1] = aux[i];
+                    if(!data.ContainsKey(aux[0]))
+                        data.Add(aux[0], classLabes);
+                    line = r.ReadLine();
+                }
+                r.Close();
+                ClusterLabel pn = new ClusterLabel(clusters,data);
+
+                pn.Show();
+
             }
         }
     }

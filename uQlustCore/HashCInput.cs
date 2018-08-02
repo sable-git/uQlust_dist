@@ -43,7 +43,7 @@ namespace uQlustCore
         [Description("Number of requested clusters")]
         public int reqClusters = 1000;
         [Description("Number of requested reference Points")]
-        public int refPoints = 100;
+        public int refPoints = 50;
         public void GenerateAutomaticProfiles(string fileName)
         {
             ProfileTree t = ProfileAutomatic.AnalyseProfileFile(fileName, SIMDIST.SIMILARITY);

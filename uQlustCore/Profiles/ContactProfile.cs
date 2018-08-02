@@ -441,11 +441,14 @@ namespace uQlustCore.Profiles
                 {
                     string strName;
                     //strName = pdbs.AddPDB(item, PDBMODE.CA_CB);
-                    if (this.GetType() == typeof(ContactProfile))
-                        strName = pdbs.AddPDB(item, PDBMODE.ALL_ATOMS);
+                    if(dirSettings.mode==INPUTMODE.PROTEIN)                   
+                        if (this.GetType() == typeof(ContactProfile))
+                            strName = pdbs.AddPDB(item, PDBMODE.ALL_ATOMS);
+                        else
+                            strName = pdbs.AddPDB(item, PDBMODE.ONLY_CA);
                     else
-                        strName = pdbs.AddPDB(item, PDBMODE.ONLY_CA);
-                    if(strName!=null)
+                        strName = pdbs.AddPDB(item, PDBMODE.ONLY_P_AND_C4);
+                    if (strName!=null)
                         MakeProfiles(strName,pdbs.molDic[strName], wr);
 
                     Interlocked.Increment(ref currentProgress); 

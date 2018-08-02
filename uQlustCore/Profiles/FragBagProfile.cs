@@ -298,8 +298,12 @@ namespace uQlustCore.Profiles
                     for (int i = 0; i < profile.Length; i++)
                         profile[i] = 0;
                     res = chain.Residues;
-                    if (res.Count <= 10)
-                        continue;
+                    if(dirSettings.mode==INPUTMODE.PROTEIN)
+                        if (res.Count <= 10)
+                            continue;
+                    if(dirSettings.mode == INPUTMODE.RNA)
+                        if (res.Count <= 5)
+                            continue;
                     for (int i = 0; i < res.Count; i++)
                     {
                         for (int j = 0; j < fragBagLibrary.Count; j++)
@@ -381,8 +385,12 @@ namespace uQlustCore.Profiles
                             throw new Exception("Cannot open file: " + fileN);
 
                         string line = rr.ReadLine();
-                        if (line == null)
-                            return;
+                    if (line == null)
+                    {
+                        wr.Close();
+                        rr.Close();
+                        return;
+                    }
                         while (line != null)
                         {
                             if(!line.Contains(">"))
@@ -408,8 +416,11 @@ namespace uQlustCore.Profiles
                         rr.Close();
                     }
                 }
-                if (columns == null)
-                    return;
+            if (columns == null)
+            {
+                wr.Close();
+                return;
+            }
                 double[] devStd = new double[columns.Length];
                 double[,] mean = new double[columns.Length,3];
                 for (int n = 0; n < columns.Length;n++ )
@@ -503,17 +514,111 @@ namespace uQlustCore.Profiles
                     ErrorBase.AddErrors("Unknow state " + state + " in " + node.profName + " profile!");
             }
             return newProfile;
-        }        
+        }
+        public static Dictionary<string, protInfo> RearangeColumnOrder(Dictionary<string, protInfo> dic,string fileName)
+        {
+            Dictionary<string, protInfo> res = new Dictionary<string, protInfo>();
+            List<string> keys = new List<string>(dic.Keys);
+            StreamReader f = new StreamReader(fileName);
+
+            string line = f.ReadLine();
+            f.Close();
+
+            string[] aux = line.Split();
+            int[] index = new int[aux.Length];
+            for(int i=0;i<aux.Length;i++)
+            {
+                index[i] = Convert.ToInt32(aux[i]);
+            }
+
+            for (int j = 0; j < keys.Count; j++)
+            {
+                protInfo xx = dic[keys[j]];
+                List<byte> newProfile = new List<byte>();
+                for (int i = 0; i < xx.profile.Count; i++)
+                    newProfile.Add(xx.profile[index[i]]);
+
+                xx.profile = newProfile;
+                res.Add(keys[j], xx);
+            }
+            return res;
+        }
+
+        public static Dictionary<string, protInfo> RearangeColumnOrder(Dictionary<string, protInfo> dic)
+        {
+            Dictionary<string, protInfo> res = new Dictionary<string, protInfo>();
+
+            List<double> sumColumn = new List<double>();
+
+            List<string> keys = new List<string>(dic.Keys);
+
+            for (int i = 0; i < dic[keys[0]].profile.Count; i++)
+            {
+                double sum = 0;
+                foreach (var item in keys)
+                    if (dic[item].profile[i] > 0)
+                        sum += dic[item].profile[i];
+                        //sum++;
+
+                sumColumn.Add(sum);
+            }
+            int[] index = Enumerable.Range(0, sumColumn.Count).ToArray<int>();
+
+            Array.Sort<int>(index, (b, a) => sumColumn[a].CompareTo(sumColumn[b]));
+
+            for (int j = 0; j < keys.Count; j++)
+            {
+                protInfo xx = dic[keys[j]];
+                List<byte> newProfile = new List<byte>();
+                for (int i = 0; i < xx.profile.Count; i++)
+                    newProfile.Add(xx.profile[index[i]]);
+
+                xx.profile = newProfile;
+                res.Add(keys[j], xx);
+            }
+            return res;
+        }
+        public override Dictionary<string, protInfo> GetProfile(profileNode node, string listFile, DCDFile dcd = null)
+        {
+            Dictionary<string, protInfo> res = base.GetProfile(node, listFile, dcd);
+            /*            StreamReader r = new StreamReader("sekw");
+                        string line = r.ReadLine();
+                        int []index = new int[399];
+                        int counter = 0;
+                        while (line != null)
+                        {
+                            index[counter] = Convert.ToInt32(line);
+                            line = r.ReadLine();
+                            counter++;
+                        }*/
+            int[] index =new int[20] { 0, 74, 57, 375, 343, 174, 33, 371, 227, 330, 9, 327, 141, 160, 256, 216, 138, 385, 51, 268 };// for proteins
+           // int[] index = new int[29] { 21, 64, 29, 2, 33, 57, 77, 84, 14, 44, 81, 0, 90, 74, 30, 71, 76, 8, 48, 61,86,41,3,7,15,20,23,25,51};//for rna
+            List<string> keys = new List<string>(res.Keys);
+
+            foreach(var item in keys)
+            {
+                List<byte> newProfile = new List<byte>();
+                for (int i = 0; i < index.Length; i++)
+                    newProfile.Add(res[item].profile[index[i]]);
+                protInfo xx = res[item];
+                xx.profile = newProfile;
+                res[item] = xx;
+            }
+           //res = RearangeColumnOrder(res);
+           // res = RearangeColumnOrder(res, "C:\\Projects\\listIndex");
+            res = ProfileStat.RearangeStates(res, 0.51);
+            return res;
+        }
         public void ReadLibrary()
         {
             string[] files;
-            string location = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + 
+            string location = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) +
                 Path.DirectorySeparatorChar + "fragLib";
-            
+
             if (Directory.Exists(location))
                 files = Directory.GetFiles(location);
             else
-                    throw new Exception("Directory fragLib not exists. Profile fragBag cannot be used!");
+                throw new Exception("Directory fragLib not exists. Profile fragBag cannot be used!");
 
             fragBagLibrary.Clear();
 
@@ -522,11 +627,11 @@ namespace uQlustCore.Profiles
             if (dirSettings.mode == INPUTMODE.PROTEIN)
                 libraryName = "fragBagProtein.txt";
             else
-                libraryName = "fragBagRNA.txt";
+                libraryName = "fragBagRNAv2.txt";
             libraryName = location + Path.DirectorySeparatorChar + libraryName;
-            if(!File.Exists(libraryName))            
-                throw new Exception("Cannot find: "+libraryName+" Profile fragBag cannot be used!");
-            
+            if (!File.Exists(libraryName))
+                throw new Exception("Cannot find: " + libraryName + " Profile fragBag cannot be used!");
+
             using (StreamReader s = new StreamReader(libraryName))
             {
                 string line = s.ReadLine();
@@ -539,16 +644,25 @@ namespace uQlustCore.Profiles
                         List<float[]> str = new List<float[]>();
                         while (line != null && !line.Contains("***"))
                         {
-                            line = line.Trim();
-                            line = Regex.Replace(line, @"\s+", " ");
-                            string[] aux = line.Split(' ');
-                            float[] p = new float[3];
-                            for (int i = 0; i < 3; i++)
-                                p[i] = (float)Convert.ToDouble(aux[i], System.Globalization.CultureInfo.InvariantCulture);
+                            try
+                            {
+                                line = line.Trim();
+                                line = Regex.Replace(line, @"\s+", " ");
+                                string[] aux = line.Split(' ');
+                                float[] p = new float[3];
+                                for (int i = 0; i < 3; i++)
+                                    p[i] = (float)Convert.ToDouble(aux[i], System.Globalization.CultureInfo.InvariantCulture);
 
-                            str.Add(p);
+                                str.Add(p);
+                            }
+                            catch(Exception ex)
+                            {
+                                throw new Exception("Error in frag bag library: " + line);
+                            }
                             line = s.ReadLine();
                         }
+//                        if (str.Count > 5)
+//                            Console.WriteLine("UPS");
                         float[,] auxTab = new float[str.Count, 3];
                         for (int i = 0; i < str.Count; i++)
                         {
@@ -561,14 +675,14 @@ namespace uQlustCore.Profiles
                     }
                     line = s.ReadLine();
                 }
-            }                
-            
-           
+            }
+
+
             if (fragBagLibrary.Count == 0)
                 throw new Exception("Frag Bag Library is empty!");
             distData = new float[fragBagLibrary.Count];
-            index = new int [fragBagLibrary.Count];
-            zeroCount = new int [fragBagLibrary.Count];
+            index = new int[fragBagLibrary.Count];
+            zeroCount = new int[fragBagLibrary.Count];
             profile = new int[fragBagLibrary.Count];
         }
     }

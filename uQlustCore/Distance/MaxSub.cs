@@ -58,7 +58,7 @@ namespace uQlustCore.Distance
             float[,] remTransMol = null;
             float[,] copyMol2 = null;
             copyMol2 = new float[mol2.GetLength(0), mol2.GetLength(1)];
-            remTransMol = new float[mol1.GetLength(0), mol1.GetLength(1)];
+            remTransMol = new float[mol2.GetLength(0), mol2.GetLength(1)];
             for (int i = 0; i < mol1.GetLength(0) - seedL; i++)
             {
                 pList.Clear();
@@ -247,12 +247,12 @@ namespace uQlustCore.Distance
             int loopK = 3;
             float[,] transMol=null;
             float[,] cMol1 = new float[pMol1.GetLength(0), pMol1.GetLength(1)];
-            float[,] cMol2 = new float[pMol1.GetLength(0), pMol1.GetLength(1)];
+            float[,] cMol2 = new float[pMol2.GetLength(0), pMol2.GetLength(1)];
             List<int> locList = new List<int>(cList);
             for (int i = 0; i < loopK; i++)
             {
                 Buffer.BlockCopy(pMol2, 0, cMol2, 0, pMol2.Length * sizeof(float));
-                Buffer.BlockCopy(pMol1, 0, cMol1, 0, pMol2.Length * sizeof(float));
+                Buffer.BlockCopy(pMol1, 0, cMol1, 0, pMol1.Length * sizeof(float));
                 transMol=Rotate(locList, cMol1, cMol2,copyMol);
 
                 if (transMol == null)

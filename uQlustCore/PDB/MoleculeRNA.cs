@@ -40,11 +40,13 @@ namespace uQlustCore.PDB
                         string error = atom.ParseAtomLine(this, pdbLine, flag);
                         if (error==null)
                         {
-                            if(flag==PDBMODE.ONLY_P)
+                            if(flag==PDBMODE.ONLY_P || flag==PDBMODE.ONLY_P_AND_C4)
                             {
                                 if(atom.AtomName=="P")
                                     this.atoms.Add(atom);
-                            }
+                                if(atom.AtomName=="C4*" || atom.AtomName == "C4'")
+                                    this.atoms.Add(atom);
+                        }
                             else
                                 this.atoms.Add(atom);
                         }

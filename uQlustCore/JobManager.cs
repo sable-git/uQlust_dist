@@ -511,6 +511,12 @@ namespace uQlustCore
                     else
                         dist = new JuryDistance(dirName, alignFileName, jury1d, profileName, refJuryProfile);
                     break;
+                case DistanceMeasures.TANIMOTO:
+                    if (alignFileName != null)
+                        dist = new Tanimoto(alignFileName, jury1d, profileName, refJuryProfile);
+                    else
+                        dist = new Tanimoto(dirName, alignFileName, jury1d, profileName, refJuryProfile);
+                    break;
                 case DistanceMeasures.COSINE:
                     if (alignFileName != null)
                         dist = new CosineDistance(alignFileName, jury1d, profileName, refJuryProfile);
@@ -552,6 +558,7 @@ namespace uQlustCore
         public void StartAll(object processParams)
         {
             ErrorBase.ClearErrors();
+            DebugClass.DebugOn();
             string orgProcessName = ((ThreadParam)processParams).name;
             currentProcessName = ((ThreadParam)processParams).name;
             int counter = 1;
@@ -720,7 +727,7 @@ namespace uQlustCore
                 FinishThread(orgProcessName, true);
                 message(ex.Message);
             }
-            
+            DebugClass.DebugOff();
         }
         public void RunJob(string processName)
         {

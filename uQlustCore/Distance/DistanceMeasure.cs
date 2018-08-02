@@ -6,6 +6,7 @@ using System.Text;
 using System.IO;
 using uQlustCore;
 using uQlustCore.PDB;
+using System.Globalization;
 using System.Threading;
 using uQlustCore.Interface;
 
@@ -176,6 +177,116 @@ namespace uQlustCore.Distance
         }
         protected virtual void CalcMatrix(object o)
         {
+
+            int num = (int)o;
+
+            for (int i = 0; i < distanceMatrix.Length; i++)
+                distanceMatrix[i] = 100;
+
+            string line="";
+            StreamReader distRead; /*= new StreamReader("C:\\Projects\\dist.dat");
+
+            line = distRead.ReadLine();
+            while (line != null)
+            {
+                string[] aux = line.Split(' ');
+
+                if (aux[0].Length > 4)
+                    aux[0] = "pdb" + aux[0].Substring(0, 4) + ".ent_" + Char.ToUpper(aux[0][4]) + ".pdb";
+                else
+                    aux[0] = "pdb" + aux[0].Substring(0, 4) + ".ent.pdb";
+                if (aux[1].Length > 4)
+                    aux[1] = "pdb" + aux[1].Substring(0, 4) + ".ent_" + Char.ToUpper(aux[1][4]) + ".pdb";
+                else
+                    aux[1] = "pdb" + aux[1].Substring(0, 4) + ".ent.pdb";
+                if (hashIndex.ContainsKey(aux[0]) && hashIndex.ContainsKey(aux[1]))
+                {
+                    int x, y, tmp;
+                    x = hashIndex[aux[0]];
+                    y = hashIndex[aux[1]];
+                    if (x > y)
+                    {
+                        tmp = y;
+                        y = x;
+                        x = tmp;
+                    }
+                    int dd = FindIndex(x);
+                    if (aux.Length == 3 && aux[2].Length > 0)
+                        distanceMatrix[dd + y - x] = 100 - (int)(float.Parse(aux[2], CultureInfo.InvariantCulture) /10);
+                }
+                line = distRead.ReadLine();
+            }
+
+            distRead.Close();*/
+
+
+            //distRead = new StreamReader("C:\\Projects\\final");
+            distRead = new StreamReader("C:\\Projects\\Dist\\tm_score.dat");
+
+            line = distRead.ReadLine();
+            while(line!=null)
+            {
+                string[] aux = line.Split(' ');
+
+                /*if(aux[0].Length>4)
+                    aux[0] = "pdb" + aux[0].Substring(0, 4) + ".ent_"+ Char.ToUpper(aux[0][4]) + ".pdb";
+                else
+                    aux[0]= "pdb" + aux[0].Substring(0, 4) + ".ent.pdb";
+                if(aux[1].Length>4)
+                    aux[1] = "pdb" + aux[1].Substring(0, 4) + ".ent_" + Char.ToUpper(aux[1][4]) + ".pdb";
+                else
+                    aux[1] = "pdb" + aux[1].Substring(0, 4) + ".ent.pdb";*/
+                if (hashIndex.ContainsKey(aux[0]) && hashIndex.ContainsKey(aux[1]))
+                {
+                    int x, y,tmp;
+                    x = hashIndex[aux[0]];
+                    y = hashIndex[aux[1]];
+                    if (x > y)
+                    {
+                        tmp = y;
+                        y = x;
+                        x = tmp;
+                    }
+                    int dd = FindIndex(x);
+                    if (aux.Length > 2 && aux[2].Length > 0 && distanceMatrix[dd + y - x] == 100)
+                    {
+                        //int distC = GetDistance(aux[0], aux[1]);
+                        int distOrg = 100-(int)(float.Parse(aux[2], CultureInfo.InvariantCulture) * 100);
+                        //if (distOrg > 50)
+                            //distOrg = distC;
+                        distanceMatrix[dd + y - x] = distOrg;
+                    }
+                }
+                line = distRead.ReadLine();
+            }
+
+            distRead.Close();
+
+            StreamWriter bb = new StreamWriter("vvv.dat");
+            for(int i=0;i<structures.Count;i++)
+                for(int j=i+1;j<structures.Count;j++)
+                {
+                    int tmp;
+                    int x = hashIndex[structures[i]];
+                    int y = hashIndex[structures[j]];
+                    if (x > y)
+                    {
+                        tmp = y;
+                        y = x;
+                        x = tmp;
+                    }
+                    int dd = FindIndex(x);
+
+                    if (distanceMatrix[dd + y - x] == 100)
+                        bb.WriteLine(structures[i] + " " + structures[j]);
+                }
+
+            bb.Close();
+            resetEvents[num].Set();
+
+        }
+/*        protected virtual void CalcMatrix(object o)
+        {
             int num = (int)o;
             foreach (var item in indexList[num])
             {
@@ -189,8 +300,7 @@ namespace uQlustCore.Distance
                 Interlocked.Increment(ref currentV);
             }
             resetEvents[num].Set();
-        }
-
+        }*/
 
         public virtual void CalcDistMatrix(List<string> structures) 
         {
@@ -226,6 +336,7 @@ namespace uQlustCore.Distance
                     }
                 }
             }
+            threadNumbers=1;
             for (int n = 0; n < threadNumbers; n++)
                 maxV += indexList[n].Count;
 

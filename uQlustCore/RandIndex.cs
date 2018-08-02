@@ -38,8 +38,8 @@ namespace uQlustCore
         }
         public void ClusterDistance(List<List<string>> _out1, List<List<string>> _out2,string name,ref long currentV,int consideredClusters)
         {
-            int count1 = 0, count2 = 0;
-            int maxx = 0;
+            uint count1 = 0, count2 = 0;
+            uint maxx = 0;
             long remCurrent = currentV;
             Dictionary<string, int> allData = new Dictionary<string, int>();
             List<List<string>> out1 = new List<List<string>>();
@@ -92,13 +92,13 @@ namespace uQlustCore
                     allData.Add(itemW, counter++);
 
             foreach (var item in out1)
-                count1 += item.Count;
+                count1 += (uint)item.Count;
 
             foreach (var item in out2)
-                count2 += item.Count;
+                count2 += (uint)item.Count;
 
-            maxx = count1 * (count2 + 1) / 2;
-            dataEx = new int[count1 * (count2 + 1) / 2];
+            maxx = (uint)(count1) * (count2 + 1) / 2;
+            dataEx = new int[maxx];
 
             for (i = 0; i < dataEx.GetLength(0); i++)
                 dataEx[i] = 0;

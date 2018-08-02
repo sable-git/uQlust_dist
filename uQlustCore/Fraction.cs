@@ -369,6 +369,20 @@ namespace uQlustCore
            jury1D jury = new jury1D();
            jury.PrepareJury(fileNames, null, profileName); 
            ClusterOutput opt = jury.JuryOptWeights(targets);
+
+            //StreamWriter kk;
+
+            //if (File.Exists("cccc.txt"))
+            //    kk = File.AppendText("cccc.txt");
+            //else
+            //    kk = File.CreateText("cccc.txt");
+
+            //kk.WriteLine("dirNamae=" + dirName + " size=" + opt.juryLike.Count);
+
+            //for (int i = 0; i < opt.juryLike.Count; i++)
+            //    kk.WriteLine(opt.juryLike[i].Key + " " + opt.juryLike[i].Value);
+
+            //kk.Close();
            return opt.juryLike;
        }
        void CheckBest(DistanceMeasures distance,int value,string item,ref BestModel best)

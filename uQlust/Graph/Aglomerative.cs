@@ -59,6 +59,8 @@ namespace Graph
                 localOpt.hammingProfile = hammingProfile;
                 localOpt.reference1DjuryAglom = distanceControl1.reference;
                 localOpt.jury1DProfileAglom = hammingProfile.Replace("_distance", "");
+                if (!localOpt.jury1DProfileAglom.Contains(".profiles"))
+                    localOpt.jury1DProfileAglom = localOpt.jury1DProfileAglom.Replace(".profile", ".profiles");
             }
 
 

@@ -68,11 +68,11 @@ namespace uQlustCore.Profiles
                         }
                         dic.Add(name, info);
                     }
-
+                    newProfile = new List<byte>();
                     name = line.Replace(">", "");
                     line = wr.ReadLine();
                 }
-                if (line.Contains(" profile "))
+                if (line!=null && line.Contains(" profile "))
                 {
 
                     int index = line.IndexOf(" profile ");
@@ -85,6 +85,8 @@ namespace uQlustCore.Profiles
                     string cLine=line.Remove(0, " profile ".Length+index);
 
                     cLine = Regex.Replace(cLine, @"\s+", " ");
+                    if (line.Length == 0)
+                        continue;
                     cLine = cLine.Trim();
                     string[] aux;
                     if (cLine.Contains(' '))
@@ -115,10 +117,13 @@ namespace uQlustCore.Profiles
                 }
                 line = wr.ReadLine();
             }
-            info = new protInfo();
-            info.sequence = seq;
-            info.profile = newProfile;
-            dic.Add(name, info);
+            if (newProfile.Count > 0)
+            {
+                info = new protInfo();
+                info.sequence = seq;
+                info.profile = newProfile;
+                dic.Add(name, info);
+            }
             DebugClass.WriteMessage("number of profiles " + dic.Keys.Count);
 
             wr.Close();            

@@ -18,7 +18,7 @@ namespace uQlustCore
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             
-            Application.Run(new Graph.StartForm());
+            Application.Run(new StartForm());
             //Application.Run(new Graph.AdvancedVersion());
             //Application.Run(new Rna_Protein_UserDef());
         }
