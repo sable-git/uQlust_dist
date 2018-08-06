@@ -83,6 +83,7 @@
     <Compile Include="kMeans.cs" />
     <Compile Include="KmeansInput.cs" />
     <Compile Include="Profiles\DsspContent.cs" />
+    <Compile Include="Profiles\FragBagRNA.cs" />
     <Compile Include="Profiles\GaussIntegrals.cs" />
     <Compile Include="Profiles\GaussIntegralsRNA.cs" />
     <Compile Include="Profiles\MAlignment.cs" />

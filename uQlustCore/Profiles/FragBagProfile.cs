@@ -61,7 +61,7 @@ namespace uQlustCore.Profiles
                 if (!Directory.Exists("C:\\Projects\\UQlast\\fragLib"))
                     throw new Exception("Directory fragLib not exists. Profile FragBag cannot be used!");
 
-            ReadLibrary();
+            ReadLibrary("fragBagProtein.txt");
         }
         private void ReadCathFile(string fileName,Dictionary<string,Dictionary<string,string> > aux)
         {
@@ -580,7 +580,7 @@ namespace uQlustCore.Profiles
         }
         public override Dictionary<string, protInfo> GetProfile(profileNode node, string listFile, DCDFile dcd = null)
         {
-            Dictionary<string, protInfo> res = base.GetProfile(node, listFile, dcd);
+            Dictionary<string, protInfo> res = ReadProfile(node, listFile, dcd);
             /*            StreamReader r = new StreamReader("sekw");
                         string line = r.ReadLine();
                         int []index = new int[399];
@@ -591,9 +591,9 @@ namespace uQlustCore.Profiles
                             line = r.ReadLine();
                             counter++;
                         }*/
-            int[] index =new int[20] { 0, 74, 57, 375, 343, 174, 33, 371, 227, 330, 9, 327, 141, 160, 256, 216, 138, 385, 51, 268 };// for proteins
+          //  int[] index =new int[20] { 0, 74, 57, 375, 343, 174, 33, 371, 227, 330, 9, 327, 141, 160, 256, 216, 138, 385, 51, 268 };// for proteins
            // int[] index = new int[29] { 21, 64, 29, 2, 33, 57, 77, 84, 14, 44, 81, 0, 90, 74, 30, 71, 76, 8, 48, 61,86,41,3,7,15,20,23,25,51};//for rna
-            List<string> keys = new List<string>(res.Keys);
+            /*List<string> keys = new List<string>(res.Keys);
 
             foreach(var item in keys)
             {
@@ -603,13 +603,13 @@ namespace uQlustCore.Profiles
                 protInfo xx = res[item];
                 xx.profile = newProfile;
                 res[item] = xx;
-            }
+            }*/
            //res = RearangeColumnOrder(res);
            // res = RearangeColumnOrder(res, "C:\\Projects\\listIndex");
             res = ProfileStat.RearangeStates(res, 0.51);
             return res;
         }
-        public void ReadLibrary()
+        public void ReadLibrary(string libraryName)
         {
             string[] files;
             string location = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) +
@@ -622,12 +622,6 @@ namespace uQlustCore.Profiles
 
             fragBagLibrary.Clear();
 
-            string libraryName;
-
-            if (dirSettings.mode == INPUTMODE.PROTEIN)
-                libraryName = "fragBagProtein.txt";
-            else
-                libraryName = "fragBagRNAv2.txt";
             libraryName = location + Path.DirectorySeparatorChar + libraryName;
             if (!File.Exists(libraryName))
                 throw new Exception("Cannot find: " + libraryName + " Profile fragBag cannot be used!");

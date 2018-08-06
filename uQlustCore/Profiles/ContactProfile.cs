@@ -478,7 +478,7 @@ namespace uQlustCore.Profiles
             }
             return newProfile;
         }
-        public override Dictionary<string, protInfo> GetProfile(profileNode node, string listFile,DCDFile dcd=null)
+        protected Dictionary<string, protInfo> ReadProfile(profileNode node, string listFile, DCDFile dcd = null)
         {
             Dictionary<string, protInfo> dic = null;
             StreamReader wr;
@@ -487,18 +487,18 @@ namespace uQlustCore.Profiles
 
 
             List<string> names = GetFileList(listFile);
-            if(names==null)
+            if (names == null)
                 DebugClass.WriteMessage("After GetFileList null");
             else
-                DebugClass.WriteMessage("After GetFileList "+names.Count);
+                DebugClass.WriteMessage("After GetFileList " + names.Count);
             maxV = names.Count;
             Dictionary<string, int> dicNames = new Dictionary<string, int>(names.Count);
 
             foreach (var item in names)
             {
                 string[] aux = item.Split(Path.DirectorySeparatorChar);
-                if(!dicNames.ContainsKey(aux[aux.Length-1]))
-                    dicNames.Add(aux[aux.Length-1], 0);
+                if (!dicNames.ContainsKey(aux[aux.Length - 1]))
+                    dicNames.Add(aux[aux.Length - 1], 0);
             }
             DebugClass.WriteMessage("After loop");
             string[] dotFlag = names[0].Split('|');
@@ -517,8 +517,8 @@ namespace uQlustCore.Profiles
 
             protInfo info;
             string line = wr.ReadLine();
-            string name="";
-            string seq="";
+            string name = "";
+            string seq = "";
             List<string> profile; ;
             List<byte> newProfile = null;
 
@@ -528,26 +528,26 @@ namespace uQlustCore.Profiles
             else
                 profileName = contactProfile;
             //Check number of elements in file
-            int lineLength=0;
+            int lineLength = 0;
 
 
             while (line != null)
             {
                 if (lineLength < line.Length)
                     lineLength = line.Length;
-                line=wr.ReadLine();                
+                line = wr.ReadLine();
 
             }
             wr.BaseStream.Position = 0;
             wr.DiscardBufferedData();
             profile = new List<string>(lineLength);
             dic = new Dictionary<string, protInfo>(names.Count);
-            line=wr.ReadLine();
-            string remName="";
+            line = wr.ReadLine();
+            string remName = "";
             DebugClass.WriteMessage("Starrrrr");
             while (line != null)
             {
-                if (line[0]=='>')
+                if (line[0] == '>')
                 {
                     if (name.Length > 0)
                     {
@@ -568,11 +568,11 @@ namespace uQlustCore.Profiles
 
                     name = line.Remove(0, 1);
                     remName = name;
-                    if(name.Contains("|") && !flag)
+                    if (name.Contains("|") && !flag)
                     {
                         string[] tmp = name.Split('|');
                         name = tmp[0];
-                     
+
                     }
                 }
                 if (dicNames.ContainsKey(name))
@@ -581,23 +581,23 @@ namespace uQlustCore.Profiles
                         seq = line.Remove(0, SEQprofile.Length);
                     else
                         if (line.Contains(profileName))
+                    {
+                        //StringBuilder tmp = new StringBuilder(line);
+                        line = line.Remove(0, profileName.Length);
+                        //tmp = tmp.Remove(0, profileName.Length);
+                        //StringBuilder tmp = new StringBuilder (line.Remove(0, profileName.Length));
+                        string[] aux;
+                        if (line.Contains(' '))
+                            aux = line.Split(' ');
+                        else
                         {
-                            //StringBuilder tmp = new StringBuilder(line);
-                            line=line.Remove(0,profileName.Length);
-                            //tmp = tmp.Remove(0, profileName.Length);
-                            //StringBuilder tmp = new StringBuilder (line.Remove(0, profileName.Length));
-                            string[] aux;
-                            if(line.Contains(' '))                           
-                                aux = line.Split(' ');                            
-                            else
-                            {
-                                aux = new string[line.Length];
-                                for (int i = 0; i < line.Length; i++)
-                                    aux[i] = line[i].ToString();
-                            }
-                            newProfile = CreateNewProfile(node, aux);
-
+                            aux = new string[line.Length];
+                            for (int i = 0; i < line.Length; i++)
+                                aux[i] = line[i].ToString();
                         }
+                        newProfile = CreateNewProfile(node, aux);
+
+                    }
                 }
                 line = wr.ReadLine();
             }
@@ -610,9 +610,14 @@ namespace uQlustCore.Profiles
             }
 
             wr.Close();
-            DebugClass.WriteMessage("Reading finished");            
+            DebugClass.WriteMessage("Reading finished");
             return dic;
 
+
+        }
+        public override Dictionary<string, protInfo> GetProfile(profileNode node, string listFile,DCDFile dcd=null)
+        {
+            return ReadProfile(node, listFile, dcd);
         }
         public override void AddInternalProfiles()
         {
